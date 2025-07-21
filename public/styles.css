@@ -411,6 +411,46 @@ body {
   grid-column: 1 / -1;
 }
 
+.member-profile-section {
+  margin-bottom: 30px;
+  padding: 20px;
+  border: 1px solid #e9ecef;
+  border-radius: 12px;
+  background: #fafbfc;
+}
+
+.member-profile-section:last-child {
+  margin-bottom: 0;
+}
+
+.profile-member-name {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  color: #2c3e50;
+  font-size: 1.2rem;
+}
+
+.member-avatar-small {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.profile-divider {
+  height: 1px;
+  background: #e9ecef;
+  margin: 30px 0;
+}
+
 .profile-form {
   margin-top: 20px;
 }

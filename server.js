@@ -36,67 +36,83 @@ app.post('/lookup-email', async (req, res) => {
   try {
     console.log(`🔍 Searching for email: ${email}`);
 
-    // Search in Team members table using the correct field name
-    const teamMembers = await base('Team members').select({
-      filterByFormula: `{Personal email*} = "${email}"`
+    // First, check in UTS Startups table (primary contact email)
+    console.log('🔍 Checking startups table first...');
+    let startups = await base('UTS Startups').select({
+      filterByFormula: `{Primary contact email} = "${email}"`
     }).firstPage();
 
-    if (teamMembers.length === 0) {
-      console.log('❌ Email not found in our records');
-      return res.status(404).json({ error: 'Email not found in our records' });
+    let startupName;
+    let startup;
+
+    if (startups.length > 0) {
+      // Found in startups table
+      startup = startups[0];
+      startupName = startup.get('Startup Name (or working title)');
+      console.log(`✅ Found email in startups table - Startup: ${startupName}`);
+    } else {
+      // If not in startups table, check team members table
+      console.log('🔍 Not in startups table, checking team members...');
+      const teamMembers = await base('Team members').select({
+        filterByFormula: `{Personal email*} = "${email}"`
+      }).firstPage();
+
+      if (teamMembers.length === 0) {
+        console.log('❌ Email not found in either startups or team members');
+        return res.status(404).json({ error: 'Email not found in our records' });
+      }
+
+      console.log(`✅ Found email in team members table`);
+      const teamMember = teamMembers[0];
+      startupName = teamMember.get('Startup*');
+
+      if (!startupName) {
+        console.log('❌ No startup associated with this team member email');
+        return res.status(404).json({ error: 'No startup associated with this email' });
+      }
+
+      // Find the startup record
+      console.log(`🔍 Searching for startup: ${startupName}`);
+      startups = await base('UTS Startups').select({
+        filterByFormula: `{Startup Name (or working title)} = "${startupName}"`
+      }).firstPage();
+
+      if (startups.length === 0) {
+        console.log(`❌ Startup "${startupName}" not found`);
+        return res.status(404).json({ error: 'Startup not found' });
+      }
+
+      startup = startups[0];
+      console.log('✅ Found startup record');
     }
 
-    console.log(`✅ Found team member record`)
-
-    const teamMember = teamMembers[0];
-    const startupName = teamMember.get('Startup*');
-    console.log(`🏢 Startup name: ${startupName}`);
-
-    if (!startupName) {
-      console.log('❌ No startup associated with this email');
-      return res.status(404).json({ error: 'No startup associated with this email' });
-    }
-
-    // Find the startup record
-    console.log('🔍 Searching for startup record...');
-    const startups = await base('UTS Startups').select({
-      filterByFormula: `{Startup Name (or working title)} = "${startupName}"`
-    }).firstPage();
-
-    if (startups.length === 0) {
-      console.log(`❌ Startup "${startupName}" not found`);
-      return res.status(404).json({ error: 'Startup not found' });
-    }
-    
-    console.log('✅ Found startup record');
-
-    const startup = startups[0];
-
-    // Generate unique token
+        // Generate unique token (expires in 15 minutes)
     const token = jwt.sign(
-      {
+      { 
         startupId: startup.id,
         startupName: startupName,
         email: email,
         timestamp: Date.now()
       },
       process.env.JWT_SECRET,
-      { expiresIn: '7d' }
+      { expiresIn: '15m' }
     );
 
     // Create magic link
     const magicLink = `${req.protocol}://${req.get('host')}/dashboard/${token}`;
-
-    // Calculate expiry date (7 days from now)
+    
+    // Calculate expiry date (15 minutes from now)
     const expiryDate = new Date();
-    expiryDate.setDate(expiryDate.getDate() + 7);
+    expiryDate.setMinutes(expiryDate.getMinutes() + 15);
 
     // Update the startup record with magic link
+    console.log('💾 Saving magic link to Airtable...');
     await base('UTS Startups').update(startup.id, {
       'Magic Link': magicLink,
-      'Token Expires At': expiryDate.toISOString().split('T')[0], // YYYY-MM-DD format
+      'Token Expires At': expiryDate.toISOString(), // Full ISO format with time
       'Link': magicLink
     });
+    console.log('✅ Magic link saved to Airtable');
 
     res.json({
       success: true,
@@ -252,90 +268,88 @@ function generateDashboardHTML(data) {
             </div>
 
             <div class="card profile-card">
-                <h2>Your Profile</h2>
-                <p class="subtitle">Update your contact details and position information</p>
-                <form id="profileForm" class="profile-form">
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label for="personalEmail">Personal Email</label>
-                            <input type="email" id="personalEmail" name="Personal email*" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="mobile">Mobile Number</label>
-                            <input type="tel" id="mobile" name="Mobile*" required>
-                        </div>
-                        <div class="form-group full-width">
-                            <label for="position">Position at Startup</label>
-                            <input type="text" id="position" name="Position at startup*" required>
-                        </div>
-                        <div class="form-group full-width">
-                            <label for="utsAssociation">What is your association to UTS?</label>
-                            <input type="text" id="utsAssociation" name="What is your association to UTS?*" required>
-                        </div>
+                <h2>Update Team Member Profiles</h2>
+                <p class="subtitle">Each team member can update their individual profile</p>
+                ${data.teamMembers.map((member, index) => `
+                    <div class="member-profile-section" data-member-id="${member.id}">
+                        <h3 class="profile-member-name">
+                            <span class="member-avatar-small">${member.name ? member.name.charAt(0).toUpperCase() : 'M'}</span>
+                            ${member.name}
+                        </h3>
+                        <form id="profileForm${index}" class="profile-form" data-member-id="${member.id}">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="personalEmail${index}">Personal Email</label>
+                                    <input type="email" id="personalEmail${index}" name="Personal email*" value="${member.email || ''}" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="mobile${index}">Mobile Number</label>
+                                    <input type="tel" id="mobile${index}" name="Mobile*" value="${member.mobile || ''}" required>
+                                </div>
+                                <div class="form-group full-width">
+                                    <label for="position${index}">Position at Startup</label>
+                                    <input type="text" id="position${index}" name="Position at startup*" value="${member.position || ''}" required>
+                                </div>
+                                <div class="form-group full-width">
+                                    <label for="utsAssociation${index}">What is your association to UTS?</label>
+                                    <input type="text" id="utsAssociation${index}" name="What is your association to UTS?*" value="${member.utsAssociation || ''}" required>
+                                </div>
+                            </div>
+                            <button type="submit" class="submit-btn">Update ${member.name}'s Profile</button>
+                        </form>
                     </div>
-                    <button type="submit" class="submit-btn">Update Information</button>
-                </form>
+                    ${index < data.teamMembers.length - 1 ? '<div class="profile-divider"></div>' : ''}
+                `).join('')}
             </div>
         </div>
     </div>
 
     <script>
         const token = '${data.token}';
-        let currentMemberId = null;
+        const teamMembers = ${JSON.stringify(data.teamMembers)};
 
-        // Load current user data (first team member for now)
+        // Handle form submissions for each team member
         document.addEventListener('DOMContentLoaded', function() {
-            const teamMembers = ${JSON.stringify(data.teamMembers)};
-            if (teamMembers.length > 0) {
-                const currentUser = teamMembers[0]; // In real app, identify current user
-                currentMemberId = currentUser.id;
-                document.getElementById('personalEmail').value = currentUser.email || '';
-                document.getElementById('mobile').value = currentUser.mobile || '';
-                document.getElementById('position').value = currentUser.position || '';
-                document.getElementById('utsAssociation').value = currentUser.utsAssociation || '';
-            }
-        });
+            teamMembers.forEach((member, index) => {
+                const form = document.getElementById('profileForm' + index);
+                if (form) {
+                    form.addEventListener('submit', async function(e) {
+                        e.preventDefault();
+                        
+                        const formData = new FormData(this);
+                        const updates = {};
+                        
+                        for (let [key, value] of formData.entries()) {
+                            updates[key] = value;
+                        }
 
-        // Handle form submission
-        document.getElementById('profileForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            if (!currentMemberId) {
-                Swal.fire('Error', 'Unable to identify your profile', 'error');
-                return;
-            }
+                        try {
+                            const response = await fetch('/update-profile', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({
+                                    token: token,
+                                    memberId: member.id,
+                                    updates: updates
+                                })
+                            });
 
-            const formData = new FormData(this);
-            const updates = {};
-            
-            for (let [key, value] of formData.entries()) {
-                updates[key] = value;
-            }
+                            const result = await response.json();
 
-            try {
-                const response = await fetch('/update-profile', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        token: token,
-                        memberId: currentMemberId,
-                        updates: updates
-                    })
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                    Swal.fire('Success!', 'Your profile has been updated.', 'success');
-                } else {
-                    Swal.fire('Error', result.error || 'Failed to update profile', 'error');
+                            if (result.success) {
+                                Swal.fire('Success!', \`\${member.name}'s profile has been updated.\`, 'success');
+                            } else {
+                                Swal.fire('Error', result.error || 'Failed to update profile', 'error');
+                            }
+                        } catch (error) {
+                            console.error('Error:', error);
+                            Swal.fire('Error', 'Failed to update profile', 'error');
+                        }
+                    });
                 }
-            } catch (error) {
-                console.error('Error:', error);
-                Swal.fire('Error', 'Failed to update profile', 'error');
-            }
+            });
         });
 
         function showUpdateModal() {
