@@ -14,9 +14,7 @@
     "dotenv": "^16.3.1",
     "body-parser": "^1.20.2",
     "cors": "^2.8.5",
-    "crypto": "^1.0.1"
-  },
-  "devDependencies": {
+    "crypto": "^1.0.1",
     "nodemon": "^3.0.1"
   },
   "engines": {
