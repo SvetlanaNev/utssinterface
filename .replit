@@ -27,4 +27,8 @@ start = "typescript-language-server --stdio"
 channel = "stable-22_11"
 
 [env]
-NODE_ENV = "production" 
+NODE_ENV = "production"
+
+[[ports]]
+localPort = 3000
+externalPort = 80 

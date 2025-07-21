@@ -86,9 +86,9 @@ app.post('/lookup-email', async (req, res) => {
       console.log('✅ Found startup record');
     }
 
-        // Generate unique token (expires in 15 minutes)
+    // Generate unique token (expires in 15 minutes)
     const token = jwt.sign(
-      { 
+      {
         startupId: startup.id,
         startupName: startupName,
         email: email,
@@ -98,9 +98,14 @@ app.post('/lookup-email', async (req, res) => {
       { expiresIn: '15m' }
     );
 
-    // Create magic link
-    const magicLink = `${req.protocol}://${req.get('host')}/dashboard/${token}`;
+    // Create magic link (force HTTPS for Replit and production)
+    const host = req.get('host');
+    const isReplit = host && host.includes('replit.dev');
+    const protocol = isReplit || process.env.NODE_ENV === 'production' ? 'https' : req.protocol;
+    const magicLink = `${protocol}://${host}/dashboard/${token}`;
     
+    console.log(`🔗 Generated magic link: ${magicLink} (Host: ${host}, IsReplit: ${isReplit}, Protocol: ${protocol})`);
+
     // Calculate expiry date (15 minutes from now)
     const expiryDate = new Date();
     expiryDate.setMinutes(expiryDate.getMinutes() + 15);
@@ -114,8 +119,8 @@ app.post('/lookup-email', async (req, res) => {
     });
     console.log('✅ Magic link saved to Airtable');
 
-        res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: 'Magic link generated and saved to Airtable! You will receive it via email shortly.',
       magicLink: magicLink
     });
