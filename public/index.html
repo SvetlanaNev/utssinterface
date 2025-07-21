@@ -97,19 +97,16 @@
 
         const result = await response.json();
 
-        if (result.success) {
-          // Show success message
-          await Swal.fire({
-            icon: 'success',
-            title: 'Success!',
-            text: 'Magic link created! Redirecting to your dashboard...',
-            timer: 2000,
-            showConfirmButton: false
-          });
-
-          // Redirect to dashboard
-          window.location.href = result.redirectUrl;
-        } else {
+                        if (result.success) {
+                    // Show success message
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Magic Link Created!',
+                        text: result.message,
+                        confirmButtonText: 'OK',
+                        confirmButtonColor: '#007bff'
+                    });
+                } else {
           // Show error message
           Swal.fire({
             icon: 'error',

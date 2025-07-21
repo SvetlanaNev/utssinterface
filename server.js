@@ -114,10 +114,10 @@ app.post('/lookup-email', async (req, res) => {
     });
     console.log('✅ Magic link saved to Airtable');
 
-    res.json({
-      success: true,
-      message: 'Magic link generated successfully!',
-      redirectUrl: magicLink
+        res.json({ 
+      success: true, 
+      message: 'Magic link generated and saved to Airtable! You will receive it via email shortly.',
+      magicLink: magicLink
     });
 
   } catch (error) {
@@ -252,7 +252,7 @@ function generateDashboardHTML(data) {
                 <div class="team-list">
                     ${data.teamMembers.map(member => `
                         <div class="team-member" data-member-id="${member.id}">
-                            <div class="member-avatar">S</div>
+                            <div class="member-avatar">${member.name ? member.name.charAt(0).toUpperCase() : 'M'}</div>
                             <div class="member-info">
                                 <div class="member-name">${member.name}</div>
                                 <div class="member-details">
@@ -261,21 +261,29 @@ function generateDashboardHTML(data) {
                                     <span class="member-email">📧 ${member.utsAssociation}</span>
                                 </div>
                             </div>
-                            <span class="member-status ${member.status ? member.status.toLowerCase() : 'active'}">${member.status || 'Active'}</span>
+                            <div class="member-actions">
+                                <span class="member-status ${member.status ? member.status.toLowerCase() : 'active'}">${member.status || 'Active'}</span>
+                                <button class="edit-profile-btn" onclick="toggleProfileForm('${member.id}')">
+                                    ✏️ Edit Profile
+                                </button>
+                            </div>
                         </div>
                     `).join('')}
                 </div>
             </div>
 
-            <div class="card profile-card">
-                <h2>Update Team Member Profiles</h2>
-                <p class="subtitle">Each team member can update their individual profile</p>
+            <div class="card profile-card" id="profileCard" style="display: none;">
+                <h2>Update Team Member Profile</h2>
+                <p class="subtitle">Edit profile information and click update to save changes</p>
                 ${data.teamMembers.map((member, index) => `
-                    <div class="member-profile-section" data-member-id="${member.id}">
-                        <h3 class="profile-member-name">
-                            <span class="member-avatar-small">${member.name ? member.name.charAt(0).toUpperCase() : 'M'}</span>
-                            ${member.name}
-                        </h3>
+                    <div class="member-profile-section" data-member-id="${member.id}" id="profileSection${member.id}" style="display: none;">
+                        <div class="profile-header">
+                            <h3 class="profile-member-name">
+                                <span class="member-avatar-small">${member.name ? member.name.charAt(0).toUpperCase() : 'M'}</span>
+                                ${member.name}
+                            </h3>
+                            <button class="close-profile-btn" onclick="hideProfileForm('${member.id}')">✖ Close</button>
+                        </div>
                         <form id="profileForm${index}" class="profile-form" data-member-id="${member.id}">
                             <div class="form-grid">
                                 <div class="form-group">
@@ -298,7 +306,6 @@ function generateDashboardHTML(data) {
                             <button type="submit" class="submit-btn">Update ${member.name}'s Profile</button>
                         </form>
                     </div>
-                    ${index < data.teamMembers.length - 1 ? '<div class="profile-divider"></div>' : ''}
                 `).join('')}
             </div>
         </div>
@@ -352,7 +359,32 @@ function generateDashboardHTML(data) {
             });
         });
 
+        function toggleProfileForm(memberId) {
+            const profileCard = document.getElementById('profileCard');
+            const profileSection = document.getElementById('profileSection' + memberId);
+            
+            // Hide all profile sections first
+            const allSections = document.querySelectorAll('.member-profile-section');
+            allSections.forEach(section => section.style.display = 'none');
+            
+            // Show the profile card and specific member section
+            profileCard.style.display = 'block';
+            profileSection.style.display = 'block';
+            
+            // Scroll to the form
+            profileCard.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function hideProfileForm(memberId) {
+            const profileCard = document.getElementById('profileCard');
+            const profileSection = document.getElementById('profileSection' + memberId);
+            
+            profileSection.style.display = 'none';
+            profileCard.style.display = 'none';
+        }
+
         function showUpdateModal() {
+            // This function can be removed or kept for backwards compatibility
             document.querySelector('.profile-card').scrollIntoView({ behavior: 'smooth' });
         }
     </script>
