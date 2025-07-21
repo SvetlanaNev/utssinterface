@@ -1,0 +1,12 @@
+run = "npm start"
+modules = ["nodejs-18"]
+
+[deployment]
+build = "npm install"
+run = "npm start"
+
+[env]
+NODE_ENV = "production"
+
+[nix]
+channel = "stable-22_11" 

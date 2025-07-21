@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UTS Startup Portal Access</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+
+<body>
+  <div class="landing-container">
+    <div class="landing-card">
+      <div class="logo-section">
+        <div class="logo-icon">🚀</div>
+        <h1>UTS Startup Portal</h1>
+        <p class="tagline">Access your startup dashboard</p>
+      </div>
+
+      <div class="form-section">
+        <h2>Enter Your Email</h2>
+        <p class="form-subtitle">Enter the email address associated with your startup to access your dashboard</p>
+
+        <form id="emailForm" class="email-form">
+          <div class="input-group">
+            <div class="input-wrapper">
+              <input type="email" id="email" name="email" placeholder="Enter your email address" required
+                autocomplete="email">
+              <div class="input-icon">📧</div>
+            </div>
+          </div>
+
+          <button type="submit" class="access-btn" id="accessBtn">
+            <span class="btn-text">Access Dashboard</span>
+            <span class="btn-loading" style="display: none;">
+              <div class="spinner"></div>
+              Checking...
+            </span>
+          </button>
+        </form>
+
+        <div class="help-text">
+          <p>💡 <strong>Need help?</strong> Make sure to use the email address you registered with your startup team.
+          </p>
+        </div>
+      </div>
+
+      <div class="features-section">
+        <h3>What you can do:</h3>
+        <ul class="features-list">
+          <li>
+            <span class="feature-icon">📊</span>
+            <span>View your startup information</span>
+          </li>
+          <li>
+            <span class="feature-icon">👥</span>
+            <span>See all team members</span>
+          </li>
+          <li>
+            <span class="feature-icon">✏️</span>
+            <span>Update your profile details</span>
+          </li>
+          <li>
+            <span class="feature-icon">🔗</span>
+            <span>Get a secure access link</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="background-pattern"></div>
+  </div>
+
+  <script>
+    document.getElementById('emailForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+
+      const email = document.getElementById('email').value;
+      const accessBtn = document.getElementById('accessBtn');
+      const btnText = accessBtn.querySelector('.btn-text');
+      const btnLoading = accessBtn.querySelector('.btn-loading');
+
+      // Show loading state
+      btnText.style.display = 'none';
+      btnLoading.style.display = 'flex';
+      accessBtn.disabled = true;
+
+      try {
+        const response = await fetch('/lookup-email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email: email })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          // Show success message
+          await Swal.fire({
+            icon: 'success',
+            title: 'Success!',
+            text: 'Magic link created! Redirecting to your dashboard...',
+            timer: 2000,
+            showConfirmButton: false
+          });
+
+          // Redirect to dashboard
+          window.location.href = result.redirectUrl;
+        } else {
+          // Show error message
+          Swal.fire({
+            icon: 'error',
+            title: 'Email Not Found',
+            text: result.error,
+            confirmButtonText: 'Try Again',
+            confirmButtonColor: '#007bff'
+          });
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Connection Error',
+          text: 'Unable to connect to the server. Please try again.',
+          confirmButtonText: 'Try Again',
+          confirmButtonColor: '#007bff'
+        });
+      } finally {
+        // Reset button state
+        btnText.style.display = 'inline';
+        btnLoading.style.display = 'none';
+        accessBtn.disabled = false;
+      }
+    });
+
+    // Add some interactive effects
+    document.getElementById('email').addEventListener('focus', function () {
+      this.parentElement.classList.add('focused');
+    });
+
+    document.getElementById('email').addEventListener('blur', function () {
+      this.parentElement.classList.remove('focused');
+    });
+  </script>
+</body>
+
+</html>
